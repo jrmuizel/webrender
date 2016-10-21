@@ -66,10 +66,10 @@ mod linux {
 #[cfg(target_os="macos")]
 mod macos {
     use std::str::FromStr;
+    use std::os::raw::c_void;
     use core_foundation::base::TCFType;
     use core_foundation::string::CFString;
     use core_foundation::bundle::{CFBundleRef, CFBundleGetBundleWithIdentifier, CFBundleGetFunctionPointerForName};
-    use std::os::raw::{c_void};
 
     pub struct Library(CFBundleRef);
 
@@ -91,10 +91,38 @@ mod macos {
     }
 }
 
+#[cfg(target_os="windows")]
+mod win {
+    use winapi;
+    use kernel32;
+    use std::ffi::CString;
+
+    pub struct Library(winapi::HMODULE);
+
+    impl Library {
+        pub fn new() -> Library {
+            let lib = unsafe {
+                kernel32::LoadLibraryA(b"opengl32.dll\0".as_ptr() as *const _);
+            };
+            if lib.is_null() {
+                println!("Opengl Library is null");
+            }
+            Library(lib)
+        }
+        pub fn query(&self, name: &str) -> *const c_void {
+            let symbol_name = CString::new(addr).unwrap();
+            let symbol = kernel32::GetProcAddress(lib, symbol_name.as_ptr()) as *const _;
+            symbol as *const _
+        }
+    }
+}
+
 #[cfg(target_os = "linux")]
 use self::linux::Library as GlLibrary;
 #[cfg(target_os = "macos")]
 use self::macos::Library as GlLibrary;
+#[cfg(target_os = "windows")]
+use self::win::Library as GlLibrary;
 
 /*
 struct Notifier {
