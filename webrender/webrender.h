@@ -27,6 +27,14 @@ struct WRRect {
   float height;
 };
 
+struct WRImageMask
+{
+    WRImageKey image;
+    WRRect rect;
+    bool repeat;
+};
+
+
 struct wrstate;
 
 wrstate* wr_create(uint32_t width, uint32_t height, uint32_t counter);
@@ -40,11 +48,12 @@ void wr_delete_image(wrstate* wrstate, WRImageKey key);
 
 void wr_push_dl_builder(wrstate *wrState);
 //XXX: matrix should use a proper type
-void wr_pop_dl_builder(wrstate *wrState, float x, float y, float width, float height, float *matrix);
+void wr_pop_dl_builder(wrstate *wrState, WRRect bounds, WRRect overflow, float *matrix, uint64_t scrollId);
 void wr_dp_begin(wrstate* wrState, uint32_t width, uint32_t height);
 void wr_dp_end(wrstate* wrState);
-void wr_dp_push_rect(wrstate* wrState, float x, float y, float w, float h, float r, float g, float b, float a);
-void wr_dp_push_image(wrstate* wrState, WRRect bounds, WRRect clip, WRImageKey key);
+void wr_composite(wrstate* wrState);
+void wr_dp_push_rect(wrstate* wrState, WRRect bounds, WRRect clip, float r, float g, float b, float a);
+void wr_dp_push_image(wrstate* wrState, WRRect bounds, WRRect clip, WRImageMask *mask, WRImageKey key);
 
 }
 #endif

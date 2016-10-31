@@ -11,7 +11,7 @@ use gleam::gl;
 use std::ffi::CStr;
 use webrender_traits::{ServoScrollRootId};
 use webrender_traits::{Epoch, ColorF};
-use webrender_traits::{ImageFormat, ImageKey, ImageRendering, RendererKind};
+use webrender_traits::{ImageFormat, ImageKey, ImageMask, ImageRendering, RendererKind};
 use std::mem;
 use std::slice;
 
@@ -148,7 +148,6 @@ pub struct WebRenderFrameBuilder {
     pub display_lists: Vec<(DisplayListId, webrender_traits::BuiltDisplayList)>,
     pub auxiliary_lists_builder: AuxiliaryListsBuilder,
     pub root_pipeline_id: PipelineId,
-    pub next_scroll_layer_id: usize,
 }
 
 impl WebRenderFrameBuilder {
@@ -158,7 +157,6 @@ impl WebRenderFrameBuilder {
             display_lists: vec![],
             auxiliary_lists_builder: AuxiliaryListsBuilder::new(),
             root_pipeline_id: root_pipeline_id,
-            next_scroll_layer_id: 0,
         }
     }
 
@@ -185,15 +183,6 @@ impl WebRenderFrameBuilder {
         self.display_lists.push((id, display_list));
         id
     }
-
-    pub fn next_scroll_layer_id(&mut self) -> webrender_traits::ScrollLayerId {
-        let scroll_layer_id = self.next_scroll_layer_id;
-        self.next_scroll_layer_id += 1;
-        webrender_traits::ScrollLayerId::new(self.root_pipeline_id,
-                                             scroll_layer_id,
-                                             ServoScrollRootId(0))
-    }
-
 }
 /*
 impl webrender_traits::RenderNotifier for Notifier {
@@ -294,16 +283,25 @@ pub extern fn wr_push_dl_builder(state:&mut WrState)
 }
 
 #[no_mangle]
-pub extern fn wr_pop_dl_builder(state:&mut WrState, x: f32, y: f32, width: f32, height: f32, transform: &Matrix4D<f32>)
+pub extern fn wr_pop_dl_builder(state:&mut WrState, bounds: WrRect, overflow: WrRect, transform: &Matrix4D<f32>, scroll_id: u64)
 {
     // 
     state.z_index += 1;
 
+    let pipeline_id = state.frame_builder.root_pipeline_id;
+    let scroll_layer_id = if scroll_id == 0 {
+        None
+    } else {
+        Some(webrender_traits::ScrollLayerId::new(pipeline_id,
+                                                  scroll_id as usize, // WR issue 489
+                                                  ServoScrollRootId(0)))
+    };
+
     let mut sc =
-        webrender_traits::StackingContext::new(None,
+        webrender_traits::StackingContext::new(scroll_layer_id,
                                                webrender_traits::ScrollPolicy::Scrollable,
-                                               Rect::new(Point2D::new(0., 0.), Size2D::new(0., 0.)),
-                                               Rect::new(Point2D::new(x, y), Size2D::new(width, height)),
+                                               bounds.to_rect(),
+                                               overflow.to_rect(),
                                                state.z_index,
                                                transform,
                                                &Matrix4D::identity(),
@@ -313,7 +311,6 @@ pub extern fn wr_pop_dl_builder(state:&mut WrState, x: f32, y: f32, width: f32, 
                                                &mut state.frame_builder.auxiliary_lists_builder);
     let dl = state.dl_builder.pop().unwrap();
     state.frame_builder.add_display_list(&mut state.api, dl.finalize(), &mut sc);
-    let pipeline_id = state.frame_builder.root_pipeline_id;
     let stacking_context_id = state.frame_builder.add_stacking_context(&mut state.api, pipeline_id, sc);
 
     state.dl_builder.last_mut().unwrap().push_stacking_context(stacking_context_id);
@@ -327,10 +324,10 @@ pub extern fn wr_dp_end(state:&mut WrState) {
     let pipeline_id = state.pipeline_id;
     let (width, height) = state.size;
     let bounds = Rect::new(Point2D::new(0.0, 0.0), Size2D::new(width as f32, height as f32));
-    let root_scroll_layer_id = state.frame_builder.next_scroll_layer_id();
 
     let mut sc =
-        webrender_traits::StackingContext::new(Some(root_scroll_layer_id),
+        webrender_traits::StackingContext::new(Some(webrender_traits::ScrollLayerId::new(
+                                                        pipeline_id, 0, ServoScrollRootId(0))),
                                                webrender_traits::ScrollPolicy::Scrollable,
                                                bounds,
                                                bounds,
@@ -368,6 +365,15 @@ pub extern fn wr_dp_end(state:&mut WrState) {
 }
 
 #[no_mangle]
+pub extern fn wr_composite(state: &mut WrState) {
+    state.api.generate_frame();
+
+    state.renderer.update();
+    let (width, height) = state.size;
+    state.renderer.render(Size2D::new(width, height));
+}
+
+#[no_mangle]
 pub extern fn wr_add_image(state:&mut WrState, width: u32, height: u32, format: ImageFormat, bytes: * const u8, size: usize) -> ImageKey {
     let bytes = unsafe { slice::from_raw_parts(bytes, size).to_owned() };
     state.api.add_image(width, height, format, bytes)
@@ -385,17 +391,16 @@ pub extern fn wr_delete_image(state:&mut WrState, key: ImageKey) {
 }
 
 #[no_mangle]
-pub extern fn wr_dp_push_rect(state:&mut WrState, x: f32, y: f32, w: f32, h: f32, r: f32, g: f32, b: f32, a: f32) {
+pub extern fn wr_dp_push_rect(state:&mut WrState, rect: WrRect, clip: WrRect, r: f32, g: f32, b: f32, a: f32) {
     if state.dl_builder.len() == 0 {
       return;
     }
-    let (width, height) = state.size;
-    let bounds = Rect::new(Point2D::new(x, y), Size2D::new(width as f32, height as f32));
-    let clip_region = webrender_traits::ClipRegion::new(&bounds,
+    //let (width, height) = state.size;
+    let clip_region = webrender_traits::ClipRegion::new(&clip.to_rect(),
                                                         Vec::new(),
                                                         None,
                                                         &mut state.frame_builder.auxiliary_lists_builder);
-    state.dl_builder.last_mut().unwrap().push_rect(Rect::new(Point2D::new(x, y), Size2D::new(w, h)),
+    state.dl_builder.last_mut().unwrap().push_rect(rect.to_rect(),
                                clip_region,
                                ColorF::new(r, g, b, a));
 }
@@ -409,6 +414,14 @@ pub struct WrRect
     height: f32
 }
 
+#[repr(C)]
+pub struct WrImageMask
+{
+    image: ImageKey,
+    rect: WrRect,
+    repeat: bool
+}
+
 impl WrRect
 {
     pub fn to_rect(&self) -> Rect<f32>
@@ -418,16 +431,20 @@ impl WrRect
 }
 
 #[no_mangle]
-pub extern fn wr_dp_push_image(state:&mut WrState, bounds: WrRect, clip : WrRect, key: ImageKey) {
+pub extern fn wr_dp_push_image(state:&mut WrState, bounds: WrRect, clip : WrRect, mask: *const WrImageMask, key: ImageKey) {
     if state.dl_builder.len() == 0 {
       return;
     }
     //let (width, height) = state.size;
     let bounds = bounds.to_rect();
     let clip = clip.to_rect();
+
+    // convert from the C type to the Rust type
+    let mask = unsafe { mask.as_ref().map(|&WrImageMask{image, ref rect,repeat}| ImageMask{image: image, rect: rect.to_rect(), repeat: repeat}) };
+
     let clip_region = webrender_traits::ClipRegion::new(&clip,
                                                         Vec::new(),
-                                                        None,
+                                                        mask,
                                                         &mut state.frame_builder.auxiliary_lists_builder);
     let rect = bounds;
     state.dl_builder.last_mut().unwrap().push_image(rect,
