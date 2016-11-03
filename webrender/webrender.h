@@ -37,7 +37,7 @@ struct WRImageMask
 
 struct wrstate;
 
-wrstate* wr_create(uint32_t width, uint32_t height, uint32_t counter);
+wrstate* wr_create(uint32_t width, uint32_t height, uint64_t layers_id);
 void wr_destroy(wrstate* wrstate);
 WRImageKey wr_add_image(wrstate* wrstate, uint32_t width, uint32_t height,
                         WRImageFormat format, uint8_t *bytes, size_t size);
@@ -54,6 +54,7 @@ void wr_dp_end(wrstate* wrState);
 void wr_composite(wrstate* wrState);
 void wr_dp_push_rect(wrstate* wrState, WRRect bounds, WRRect clip, float r, float g, float b, float a);
 void wr_dp_push_image(wrstate* wrState, WRRect bounds, WRRect clip, WRImageMask *mask, WRImageKey key);
+void wr_dp_push_iframe(wrstate* wrState, WRRect bounds, WRRect clip, uint64_t layers_id);
 void wr_set_async_scroll(wrstate* wrState, uint64_t scroll_id, float x, float y);
 
 }

@@ -247,7 +247,7 @@ pub struct WrState {
 }
  
 #[no_mangle]
-pub extern fn wr_create(width: u32, height: u32, counter: u32) -> *mut WrState {
+pub extern fn wr_create(width: u32, height: u32, layers_id: u64) -> *mut WrState {
     // hack to find the directory for the shaders
     let res_path = concat!(env!("CARGO_MANIFEST_DIR"),"/res");
 
@@ -286,7 +286,7 @@ pub extern fn wr_create(width: u32, height: u32, counter: u32) -> *mut WrState {
     // let notifier = Box::new(Notifier::new(window.create_window_proxy()));
     // renderer.set_render_notifier(notifier);
 
-    let pipeline_id = PipelineId(0, counter);
+    let pipeline_id = PipelineId((layers_id >> 32) as u32, layers_id as u32);
 
     let builder = WebRenderFrameBuilder::new(pipeline_id);
 
@@ -440,6 +440,21 @@ pub extern fn wr_dp_push_rect(state:&mut WrState, rect: WrRect, clip: WrRect, r:
     state.dl_builder.last_mut().unwrap().push_rect(rect.to_rect(),
                                clip_region,
                                ColorF::new(r, g, b, a));
+}
+
+#[no_mangle]
+pub extern fn wr_dp_push_iframe(state: &mut WrState, rect: WrRect, clip: WrRect, layers_id: u64) {
+    if state.dl_builder.len() == 0 {
+        return;
+    }
+
+    let clip_region = webrender_traits::ClipRegion::new(&clip.to_rect(),
+                                                        Vec::new(),
+                                                        None,
+                                                        &mut state.frame_builder.auxiliary_lists_builder);
+    let pipeline_id = PipelineId((layers_id >> 32) as u32, layers_id as u32);
+    state.dl_builder.last_mut().unwrap().push_iframe(rect.to_rect(),
+                                clip_region, pipeline_id);
 }
 
 #[no_mangle]
