@@ -20,6 +20,9 @@ extern crate lazy_static;
 #[cfg(target_os = "windows")]
 extern crate dwrote;
 
+#[cfg(target_os = "linux")]
+extern crate font_loader;
+
 use glutin::{ElementState, VirtualKeyCode};
 use std::path::PathBuf;
 use webrender_traits::*;
