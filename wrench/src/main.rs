@@ -11,6 +11,7 @@ extern crate gleam;
 extern crate webrender_traits;
 extern crate euclid;
 extern crate yaml_rust;
+extern crate time;
 extern crate image;
 #[macro_use]
 extern crate clap;
@@ -19,6 +20,12 @@ extern crate lazy_static;
 
 #[cfg(target_os = "windows")]
 extern crate dwrote;
+/*
+#[cfg(target_os = "linux")]
+mod fontconfig;
+#[cfg(target_os = "linux")]
+use fontconfig::get;
+*/
 
 #[cfg(target_os = "linux")]
 extern crate font_loader;
@@ -98,6 +105,7 @@ fn main() {
         };
 
     let mut do_loop = false;
+    let mut t : time::SteadyTime = time::SteadyTime::now();
     while !done {
         let mut thing = thing.thing();
 
@@ -112,7 +120,7 @@ fn main() {
             wrench.show_onscreen_help();
         }
 
-        wrench.render();
+        t = wrench.render(t);
 
         if do_loop {
             thing.next_frame();

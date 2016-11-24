@@ -22,6 +22,7 @@ use webrender;
 use webrender_traits::*;
 use yaml_rust::Yaml;
 use yaml_frame_writer::YamlFrameWriter;
+use time;
 
 use {WHITE_COLOR, BLACK_COLOR};
 
@@ -115,8 +116,11 @@ impl Wrench {
            -> Wrench
     {
         // First create our GL window
-        let window = glutin::WindowBuilder::new()
+        let mut window = glutin::WindowBuilder::new()
             .with_gl(glutin::GlRequest::Specific(glutin::Api::OpenGl, (3, 2)))
+            .with_dimensions(1024, 768);
+        window.opengl.vsync = false;
+        let window = window
             .build().unwrap();
 
         unsafe {
@@ -341,10 +345,15 @@ impl Wrench {
         gl::clear(gl::COLOR_BUFFER_BIT);
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, last: time::SteadyTime) -> time::SteadyTime {
         self.renderer.update();
         self.renderer.render(self.window_size);
+        //gl::flush();
         self.window.swap_buffers().ok();
+        let now = time::SteadyTime::now();
+        println!("{}", (now - last).num_microseconds().unwrap() as f64 / 1000.);
+        now
+        //self.window.swap_buffers().ok();
     }
 
     //pub fn set_recorder<T>(&mut self, r: Box<webrender_traits::AppMsgReceiver>) {
