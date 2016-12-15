@@ -10,8 +10,10 @@ addons:
   apt:
     packages:
       - libgles2-mesa-dev
+      - llvm-3.4
 before_install:
   - sudo pip install mako
+  - export PATH="/usr/lib/llvm-3.4/bin:$PATH"
 script:
   - (cd webrender_traits && cargo test --verbose --features "ipc")
   - (cd webrender_traits && cargo test --verbose)
