@@ -309,13 +309,17 @@ impl YamlFrameWriter {
             let mut iter = dl.all_display_items().iter();
             self.write_dl(&mut root_dl_table, &mut iter, &aux);
         }
-        table_node(&mut root, "root", root_dl_table);
 
         scene.finish_root_display_list(self.pipeline_id.unwrap(), dl, aux);
 
         if let Some(root_pipeline_id) = scene.root_pipeline_id {
+        
+            u32_node(&mut root_dl_table, "id0", root_pipeline_id.0);
+            u32_node(&mut root_dl_table, "id1", root_pipeline_id.1);
+
             let mut pipelines = vec![];
             for pipeline_id in scene.pipeline_map.keys() {
+                // write out all pipelines other than the root one
                 if pipeline_id.0 == root_pipeline_id.0 && pipeline_id.1 == root_pipeline_id.1 {
                     continue;
                 }
@@ -330,6 +334,8 @@ impl YamlFrameWriter {
                 self.write_dl(&mut pipeline, &mut iter, &aux);
                 pipelines.push(Yaml::Hash(pipeline));
             }
+            
+            table_node(&mut root, "root", root_dl_table);
 
             root.insert(Yaml::String("pipelines".to_owned()), Yaml::Array(pipelines));
 
