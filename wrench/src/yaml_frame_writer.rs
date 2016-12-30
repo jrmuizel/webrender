@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use webrender;
 use webrender_traits::*;
 use yaml_rust::{Yaml, YamlEmitter};
+use scene::Scene;
 use time;
 
 use super::CURRENT_FRAME_NUMBER;
@@ -215,6 +216,23 @@ pub struct YamlFrameWriter {
     aux_descriptor: Option<AuxiliaryListsDescriptor>,
 }
 
+pub struct YamlFrameWriterReceiver {
+    frame_writer: YamlFrameWriter,
+    scene: Scene,
+    pipeline_id: Option<PipelineId>,
+}
+
+impl YamlFrameWriteReceiver {
+    pub fn new(path: &Path) -> YamlFrameWriteReciever {
+        YamlFrameWriterReceiver {
+            frame_writer: YamlFrameWriter::new(path),
+            scene: Scene::new(),
+            pipeline_id: None,
+        }
+    }
+}
+
+
 impl YamlFrameWriter {
     pub fn new(path: &Path) -> YamlFrameWriter {
         let mut rsrc_base = path.to_owned();
@@ -231,7 +249,7 @@ impl YamlFrameWriter {
             images: HashMap::new(),
             fonts: HashMap::new(),
 
-            dl_descriptor: None,
+			dl_descriptor: None,
             aux_descriptor: None,
 
             last_frame_written: u32::max_value(),
@@ -239,10 +257,10 @@ impl YamlFrameWriter {
     }
 
     pub fn begin_write_root_display_list(&mut self,
-                                         _: &Option<ColorF>,
-                                         _: &Epoch,
-                                         _: &PipelineId,
-                                         _: &LayoutSize,
+                                         background_color: &Option<ColorF>,
+                                         epoch: &Epoch,
+                                         pipeline_id: &PipelineId,
+                                         viewport_size: &LayoutSize,
                                          display_list: &BuiltDisplayListDescriptor,
                                          auxiliary_lists: &AuxiliaryListsDescriptor)
     {
@@ -255,6 +273,11 @@ impl YamlFrameWriter {
 
         self.dl_descriptor = Some(display_list.clone());
         self.aux_descriptor = Some(auxiliary_lists.clone());
+        self.pipeline_id = Some(pipeline_id.clone());
+
+		self.scene.begin_root_display_list(pipeline_id, epoch,
+										   background_color,
+										   viewport_size);
     }
 
     pub fn finish_write_root_display_list(&mut self,
@@ -274,27 +297,58 @@ impl YamlFrameWriter {
 
         let dl = BuiltDisplayList::from_data(built_display_list_data, dl_desc);
         let aux = AuxiliaryLists::from_data(aux_list_data, aux_desc);
+		
+        self.scene.finish_root_display_list(self.pipeline_id.unwrap(), dl, aux);
 
-        let mut root_dl_table = new_table();
-        let mut iter = dl.all_display_items().iter();
-        self.write_dl(&mut root_dl_table, &mut iter, &aux);
-
-        let mut root = new_table();
-        table_node(&mut root, "root", root_dl_table);
-
-        let mut s = String::new();
-        // FIXME YamlEmitter wants a std::fmt::Write, not a io::Write, so we can't pass a file
-        // directly.  This seems broken.
+        let mut pipeline_ids : Vec<PipelineId>;
         {
-            let mut emitter = YamlEmitter::new(&mut s);
-            emitter.dump(&Yaml::Hash(root)).unwrap();
+            pipeline_ids = self.scene.pipeline_map.keys().map(|x| x.clone()).collect::<Vec<PipelineId>>();
         }
-        let sb = s.into_bytes();
-        let mut frame_file_name = self.frame_base.clone();
-        let current_shown_frame = unsafe { CURRENT_FRAME_NUMBER };
-        frame_file_name.push(format!("frame-{}.yaml", current_shown_frame));
-        let mut file = File::create(&frame_file_name).unwrap();
-        file.write_all(&sb).unwrap();
+        if let Some(root_pipeline_id) = self.scene.root_pipeline_id {
+            let mut pipelines = vec![];
+            for pipeline_id in pipeline_ids {
+                if pipeline_id.0 == root_pipeline_id.0 && pipeline_id.1 == root_pipeline_id.1 {
+                    continue;
+                }
+                
+                let mut pipeline = new_table();
+                u32_node(&mut pipeline, "id0", pipeline_id.0);
+                u32_node(&mut pipeline, "id1", pipeline_id.1);
+
+                let dl = self.scene.display_lists.get(&pipeline_id).unwrap();
+                let aux = self.scene.pipeline_auxiliary_lists.get(&pipeline_id).unwrap();
+                let mut iter = dl.iter();
+                self.write_dl(&mut pipeline, &mut iter, &aux);
+                pipelines.push(Yaml::Hash(pipeline));
+            }
+
+            let mut root = new_table();
+
+            root.insert(Yaml::String("pipelines".to_owned()), Yaml::Array(pipelines));
+
+            let mut root_dl_table = new_table();
+            {
+                let mut iter = dl.all_display_items().iter();
+                self.write_dl(&mut root_dl_table, &mut iter, &aux);
+            }
+            table_node(&mut root, "root", root_dl_table);
+            
+            let mut s = String::new();
+            // FIXME YamlEmitter wants a std::fmt::Write, not a io::Write, so we can't pass a file
+            // directly.  This seems broken.
+            {
+                let mut emitter = YamlEmitter::new(&mut s);
+                emitter.dump(&Yaml::Hash(root)).unwrap();
+            }
+            let sb = s.into_bytes();
+            let mut frame_file_name = self.frame_base.clone();
+            let current_shown_frame = unsafe { CURRENT_FRAME_NUMBER };
+            frame_file_name.push(format!("frame-{}.yaml", current_shown_frame));
+            let mut file = File::create(&frame_file_name).unwrap();
+            file.write_all(&sb).unwrap();
+
+        }
+
     }
 
     fn next_rsrc_paths(prefix: &str, counter: &mut u32, base_path: &Path, base: &str, ext: &str) -> (PathBuf, PathBuf) {
@@ -524,8 +578,9 @@ impl YamlFrameWriter {
                 },
                 Iframe(item) => {
                     str_node(&mut v, "type", "iframe");
-                    // TODO
-                    println!("TODO YAML Iframe");
+                    u32_node(&mut v, "pipline_id0", item.pipeline_id.0);
+                    u32_node(&mut v, "pipline_id1", item.pipeline_id.1);
+                
                 },
                 PushStackingContext(item) => {
                     str_node(&mut v, "type", "stacking_context");
@@ -560,7 +615,9 @@ impl YamlFrameWriter {
 impl webrender::ApiRecordingReceiver for YamlFrameWriter {
     fn write_msg(&mut self, _: u32, msg: &ApiMsg) {
         match msg {
-            &ApiMsg::SetRootPipeline(..) |
+            &ApiMsg::SetRootPipeline(ref pipeline_id) => {
+                self.scene.set_root_pipeline_id(pipeline_id.clone());
+            }
             &ApiMsg::Scroll(..) |
             &ApiMsg::TickScrollingBounce |
             &ApiMsg::WebGLCommand(..) => {

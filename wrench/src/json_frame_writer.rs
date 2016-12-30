@@ -15,6 +15,7 @@ use webrender;
 use webrender_traits::*;
 use serde_json;
 use time;
+use scene::Scene;
 
 use super::CURRENT_FRAME_NUMBER;
 
@@ -42,6 +43,8 @@ pub struct JsonFrameWriter {
 
     last_frame_written: u32,
 
+    scene: Scene,
+
     dl_descriptor: Option<BuiltDisplayListDescriptor>,
     aux_descriptor: Option<AuxiliaryListsDescriptor>,
 }
@@ -61,7 +64,7 @@ impl JsonFrameWriter {
             next_rsrc_num: 1,
             images: HashMap::new(),
             fonts: HashMap::new(),
-
+            scene: Scene::new(),
             dl_descriptor: None,
             aux_descriptor: None,
 

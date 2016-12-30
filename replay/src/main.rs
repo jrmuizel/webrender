@@ -63,7 +63,7 @@ fn read_file(dir: &Path, frame: i32, api: &RenderApi) -> bool {
     };
     let written_apimsg_type_id = file.read_u64::<LittleEndian>().unwrap();
     if written_apimsg_type_id != apimsg_type_id {
-        panic!("Binary file ApiMsg enum type mismatch: expected 0x{:x}, found 0x{:x}", apimsg_type_id, written_apimsg_type_id);
+        //panic!("Binary file ApiMsg enum type mismatch: expected 0x{:x}, found 0x{:x}", apimsg_type_id, written_apimsg_type_id);
     }
 
     while let Ok(mut len) = file.read_u32::<LittleEndian>() {
