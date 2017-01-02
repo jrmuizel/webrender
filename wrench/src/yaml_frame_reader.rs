@@ -88,6 +88,14 @@ impl YamlFrameReader {
         assert!(yaml_doc.len() == 1);
 
         let yaml = yaml_doc.pop().unwrap();
+        if !yaml["pipelines"].is_badvalue() {
+            //XXX: clean this code up
+            let pipelines = yaml["pipelines"].as_vec().unwrap();
+            for pipeline in pipelines {
+                self.add_stacking_context_from_yaml(wrench, pipeline);
+            }
+
+        }
         if yaml["root"].is_badvalue() {
             panic!("Missing root stacking context");
         }
@@ -362,6 +370,18 @@ impl YamlFrameReader {
         self.builder().push_text(rect, clip, glyphs, font_key, color, size, blur_radius);
     }
 
+    fn handle_iframe(&mut self, wrench: &mut Wrench, clip_region: &ClipRegion, item: &Yaml)
+    {
+        let bounds = item["bounds"].as_rect().expect("iframe must have bounds");
+        //XXX: it would probably be better to just use a vec<u32>
+        let pipeline_id = PipelineId(item["id0"].as_i64().unwrap() as u32, item["id1"].as_i64().unwrap() as u32);
+
+        let clip = self.to_clip_region(&item["clip"], &bounds, wrench).unwrap_or(*clip_region);
+        self.builder().push_iframe(bounds, clip, pipeline_id);
+    
+    }
+
+
     pub fn add_display_list_items_from_yaml(&mut self, wrench: &mut Wrench, yaml: &Yaml) {
         let full_clip_region = {
             let win_size = wrench.window_size_f32();
@@ -397,6 +417,7 @@ impl YamlFrameReader {
                 "border" => self.handle_border(wrench, &full_clip_region, &item),
                 "gradient" => self.handle_gradient(wrench, &full_clip_region, &item),
                 "box_shadow" => self.handle_box_shadow(wrench, &full_clip_region, &item),
+                "iframe" => self.handle_iframe(wrench, &full_clip_region, &item),
                 _ => {
                     //println!("Skipping {:?}", item);
                 }
