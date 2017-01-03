@@ -92,10 +92,14 @@ impl YamlFrameReader {
             //XXX: clean this code up
             let pipelines = yaml["pipelines"].as_vec().unwrap();
             for pipeline in pipelines {
+                let pipeline_id = PipelineId(pipeline["id0"].as_i64().unwrap() as u32, pipeline["id1"].as_i64().unwrap() as u32);
+                self.builder = Some(DisplayListBuilder::new(pipeline_id));
                 self.add_stacking_context_from_yaml(wrench, pipeline);
+                wrench.send_lists(self.frame_count, self.builder.as_ref().unwrap().clone());
             }
 
         }
+        self.builder = Some(DisplayListBuilder::new(wrench.root_pipeline_id));
         if yaml["root"].is_badvalue() {
             panic!("Missing root stacking context");
         }
@@ -457,7 +461,6 @@ impl YamlFrameReader {
 impl WrenchThing for YamlFrameReader {
     fn do_frame(&mut self, wrench: &mut Wrench) -> u32 {
         if !self.frame_built || self.watch_source {
-            self.builder = Some(DisplayListBuilder::new(wrench.root_pipeline_id));
             self.build(wrench);
             self.frame_built = false;
         }
@@ -465,6 +468,7 @@ impl WrenchThing for YamlFrameReader {
         self.frame_count += 1;
 
         if !self.frame_built || wrench.should_rebuild_display_lists() {
+            wrench.begin_frame();
             wrench.send_lists(self.frame_count, self.builder.as_ref().unwrap().clone());
         } else {
             wrench.refresh();
