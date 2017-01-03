@@ -408,6 +408,18 @@ impl YamlFrameWriter {
                     save_buffer(&path_file, &bytes, data.width, data.height, ColorType::Gray(8)).unwrap();
                     true
                 } else {
+                    fn unstride<T: Clone>(mut slice: &[T], width: usize, stride: usize) -> Vec<T> {
+                        let mut result = Vec::new();
+                        while slice.len() > width {
+                            result.extend_from_slice(&slice[..width]);
+                            slice = &slice[stride..];
+                        }
+                        result.extend_from_slice(slice);
+                        result
+                    }
+
+                    let tmp = unstride(&bytes[..], data.width as usize, data.stride as usize);
+                    save_buffer(&path_file, &tmp, data.width, data.height, ColorType::Gray(8)).unwrap();
                     false
                 }
             }
