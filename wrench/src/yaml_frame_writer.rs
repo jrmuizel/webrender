@@ -419,8 +419,9 @@ impl YamlFrameWriter {
                     }
 
                     let tmp = unstride(&bytes[..], data.width as usize, data.stride as usize);
+                    assert!(tmp.len() == (data.height * data.width) as usize);
                     save_buffer(&path_file, &tmp, data.width, data.height, ColorType::Gray(8)).unwrap();
-                    false
+                    true
                 }
             }
             _ => { false }
