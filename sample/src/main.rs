@@ -119,9 +119,11 @@ fn main() {
                                   webrender_traits::MixBlendMode::Normal,
                                   Vec::new());
 
+    let image;
     let sub_clip = {
+        image = api.add_image(2, 2, None, ImageFormat::A8, ImageData::new(vec![0,80, 180, 255]));
         let mask = webrender_traits::ImageMask {
-            image: api.add_image(2, 2, None, ImageFormat::A8, ImageData::new(vec![0,80, 180, 255])),
+            image: image,
             rect: LayoutRect::new(LayoutPoint::new(75.0, 75.0), LayoutSize::new(100.0, 100.0)),
             repeat: false,
         };
@@ -238,6 +240,7 @@ fn main() {
         LayoutSize::new(width as f32, height as f32),
         builder);
     api.set_root_pipeline(pipeline_id);
+    api.delete_image(image);
 
     for event in window.wait_events() {
         renderer.update();

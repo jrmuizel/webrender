@@ -1080,6 +1080,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "wr-sample-min"
+version = "0.1.0"
+dependencies = [
+ "app_units 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "euclid 0.10.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gleam 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)",
+ "glutin 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "webrender 0.11.0",
+ "webrender_traits 0.11.0",
+]
+
+[[package]]
 name = "x11"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
