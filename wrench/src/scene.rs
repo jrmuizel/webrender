@@ -41,6 +41,7 @@ pub struct Scene {
 
 impl Scene {
     pub fn new() -> Scene {
+        println!("new scene");
         Scene {
             root_pipeline_id: None,
             pipeline_sizes: HashMap::new(),

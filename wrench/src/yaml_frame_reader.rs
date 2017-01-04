@@ -92,7 +92,7 @@ impl YamlFrameReader {
             //XXX: clean this code up
             let pipelines = yaml["pipelines"].as_vec().unwrap();
             for pipeline in pipelines {
-                let pipeline_id = PipelineId(pipeline["id0"].as_i64().unwrap() as u32, pipeline["id1"].as_i64().unwrap() as u32);
+                let pipeline_id = pipeline["id"].as_pipeline_id().unwrap();
                 self.builder = Some(DisplayListBuilder::new(pipeline_id));
                 self.add_stacking_context_from_yaml(wrench, pipeline);
                 wrench.send_lists(self.frame_count, self.builder.as_ref().unwrap().clone());
@@ -377,8 +377,7 @@ impl YamlFrameReader {
     fn handle_iframe(&mut self, wrench: &mut Wrench, clip_region: &ClipRegion, item: &Yaml)
     {
         let bounds = item["bounds"].as_rect().expect("iframe must have bounds");
-        //XXX: it would probably be better to just use a vec<u32>
-        let pipeline_id = PipelineId(item["id0"].as_i64().unwrap() as u32, item["id1"].as_i64().unwrap() as u32);
+        let pipeline_id = item["id"].as_pipeline_id().unwrap();
 
         let clip = self.to_clip_region(&item["clip"], &bounds, wrench).unwrap_or(*clip_region);
         self.builder().push_iframe(bounds, clip, pipeline_id);
