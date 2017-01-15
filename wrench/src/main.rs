@@ -36,6 +36,7 @@ use image::png::PNGEncoder;
 use std::path::PathBuf;
 use std::cmp::{min, max};
 use std::fs::File;
+use std::iter;
 use std::mem;
 use std::os::raw::c_void;
 use std::ptr;
@@ -367,12 +368,12 @@ fn main() {
             }
         }
 
-        let events = match window {
+        let events : Box<Iterator<Item=glutin::Event>> = match window {
             WindowWrapper::Headless(..) => {
-                vec![glutin::Event::Awakened]
+                Box::new(iter::repeat(glutin::Event::Awakened))
             }
             WindowWrapper::Window(ref window) => {
-                window.poll_events().collect()
+                Box::new(window.wait_events())
             }
         };
 
