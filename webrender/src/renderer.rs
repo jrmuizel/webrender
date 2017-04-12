@@ -1155,6 +1155,8 @@ impl Renderer {
         }
     }
 
+    pub fn read_pixels()
+
     pub fn layers_are_bouncing_back(&self) -> bool {
         match self.current_frame {
             None => false,
