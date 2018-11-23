@@ -1002,10 +1002,10 @@ impl DisplayListBuilder {
         )
     }
 
-    fn push_new_empty_item(&mut self, item: SpecificDisplayItem, clip_and_scroll: &ClipAndScrollInfo) {
+    fn push_new_empty_item(data: &mut Vec<u8>, item: SpecificDisplayItem, clip_and_scroll: &ClipAndScrollInfo) {
         let info = LayoutPrimitiveInfo::new(LayoutRect::zero());
         serialize_fast(
-            &mut self.data,
+            data,
             &DisplayItem {
                 item,
                 clip_and_scroll: *clip_and_scroll,
@@ -1279,8 +1279,8 @@ impl DisplayListBuilder {
     }
 
     pub fn pop_reference_frame(&mut self) {
-        let clip_and_scroll = *self.clip_stack.last().unwrap();
-        self.push_new_empty_item(SpecificDisplayItem::PopReferenceFrame, &clip_and_scroll);
+        let clip_and_scroll = self.clip_stack.last().unwrap();
+        DisplayListBuilder::push_new_empty_item(&mut self.data, SpecificDisplayItem::PopReferenceFrame, clip_and_scroll);
     }
 
     pub fn push_stacking_context(
@@ -1306,16 +1306,18 @@ impl DisplayListBuilder {
     }
 
     pub fn pop_stacking_context(&mut self) {
-        let clip_and_scroll = *self.clip_stack.last().unwrap();
-        self.push_new_empty_item(SpecificDisplayItem::PopStackingContext, &clip_and_scroll);
+        let clip_and_scroll = self.clip_stack.last().unwrap();
+        DisplayListBuilder::push_new_empty_item(&mut self.data, SpecificDisplayItem::PopStackingContext, clip_and_scroll);
     }
 
     pub fn push_stops(&mut self, stops: &[GradientStop]) {
         if stops.is_empty() {
             return;
         }
-        let clip_and_scroll = *self.clip_stack.last().unwrap();
-        self.push_new_empty_item(SpecificDisplayItem::SetGradientStops, &clip_and_scroll);
+        {
+            let clip_and_scroll = self.clip_stack.last().unwrap();
+            DisplayListBuilder::push_new_empty_item(&mut self.data, SpecificDisplayItem::SetGradientStops, clip_and_scroll);
+        }
         self.push_iter(stops);
     }
 
@@ -1402,8 +1404,10 @@ impl DisplayListBuilder {
         I::IntoIter: ExactSizeIterator + Clone,
     {
         let id = self.generate_clip_chain_id();
-        let clip_and_scroll = *self.clip_stack.last().unwrap();
-        self.push_new_empty_item(SpecificDisplayItem::ClipChain(ClipChainItem { id, parent }), &clip_and_scroll);
+        {
+            let clip_and_scroll = self.clip_stack.last().unwrap();
+            DisplayListBuilder::push_new_empty_item(&mut self.data, SpecificDisplayItem::ClipChain(ClipChainItem { id, parent }), clip_and_scroll);
+        }
         self.push_iter(clips);
         id
     }
@@ -1528,8 +1532,8 @@ impl DisplayListBuilder {
     }
 
     pub fn pop_all_shadows(&mut self) {
-        let clip_and_scroll = *self.clip_stack.last().unwrap();
-        self.push_new_empty_item(SpecificDisplayItem::PopAllShadows, &clip_and_scroll);
+        let clip_and_scroll = self.clip_stack.last().unwrap();
+        DisplayListBuilder::push_new_empty_item(&mut self.data, SpecificDisplayItem::PopAllShadows, clip_and_scroll);
     }
 
     pub fn finalize(self) -> (PipelineId, LayoutSize, BuiltDisplayList) {
