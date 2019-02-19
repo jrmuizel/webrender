@@ -97,7 +97,7 @@ pub enum FontTemplate {
 }
 
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, Hash, Eq, MallocSizeOf, PartialEq, Serialize, Deserialize, Ord, PartialOrd)]
+#[derive(Debug, Copy, Clone, Hash, Eq, MallocSizeOf, PartialEq, Serialize, Deserialize, Ord, PartialOrd, BincodeMaxSize)]
 pub enum FontRenderMode {
     Mono = 0,
     Alpha,
@@ -145,7 +145,7 @@ impl Hash for FontVariation {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Deserialize, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, BincodeMaxSize)]
 pub struct GlyphOptions {
     pub render_mode: FontRenderMode,
     pub flags: FontInstanceFlags,
@@ -162,7 +162,7 @@ impl Default for GlyphOptions {
 
 bitflags! {
     #[repr(C)]
-    #[derive(Deserialize, MallocSizeOf, Serialize)]
+    #[derive(Deserialize, MallocSizeOf, Serialize, BincodeMaxSize)]
     pub struct FontInstanceFlags: u32 {
         // Common flags
         const SYNTHETIC_BOLD    = 1 << 1;
@@ -348,7 +348,7 @@ impl Default for FontInstancePlatformOptions {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd, BincodeMaxSize)]
 pub struct FontInstanceKey(pub IdNamespace, pub u32);
 
 impl FontInstanceKey {

@@ -22,6 +22,7 @@ use color::ColorF;
 use font::{FontInstanceKey, GlyphInstance, GlyphOptions};
 use image::{ColorDepth, ImageKey};
 use units::*;
+use bincode_maxsize::BincodeMaxSize;
 
 
 // We don't want to push a long text-run. If a text-run is too long, split it into several parts.
@@ -267,9 +268,15 @@ impl<'a> BuiltDisplayListIter<'a> {
         }
 
         {
-            let reader = bincode::IoReader::new(UnsafeReader::new(&mut self.data));
-            bincode::deserialize_in_place(reader, &mut self.cur_item)
-                .expect("MEH: malicious process?");
+            if self.data.len() >= di::DisplayItem::bincode_max_size() {
+                let reader = bincode::IoReader::new(UncheckedReader::new(&mut self.data));
+                bincode::deserialize_in_place(reader, &mut self.cur_item)
+                    .expect("MEH: malicious process?");
+            } else {
+                let reader = bincode::IoReader::new(UnsafeReader::new(&mut self.data));
+                bincode::deserialize_in_place(reader, &mut self.cur_item)
+                    .expect("MEH: malicious process?");
+            }
         }
 
         match self.cur_item.item {
@@ -709,6 +716,22 @@ fn serialize_fast<T: Serialize>(vec: &mut Vec<u8>, e: T) {
     debug_assert_eq!(((w.0 as usize) - (vec.as_ptr() as usize)), vec.len());
 }
 
+fn serialize_max_fast<T: Serialize + BincodeMaxSize>(vec: &mut Vec<u8>, e: T) {
+    vec.reserve(T::bincode_max_size());
+
+    let old_len = vec.len();
+    let ptr = unsafe { vec.as_mut_ptr().add(old_len) };
+    let mut w = UnsafeVecWriter(ptr);
+    bincode::serialize_into(&mut w, &e).unwrap();
+
+    // fix up the length
+    let new_len = w.0 as usize - (vec.as_ptr() as usize);
+    unsafe { vec.set_len(new_len); }
+
+    // make sure we wrote the right amount
+    debug_assert_eq!(((w.0 as usize) - (vec.as_ptr() as usize)), vec.len());
+}
+
 /// Serializes an iterator, assuming:
 ///
 /// * The Clone impl is trivial (e.g. we're just memcopying a slice iterator)
@@ -810,6 +833,74 @@ impl<'a, 'b> Drop for UnsafeReader<'a, 'b> {
 }
 
 impl<'a, 'b> Read for UnsafeReader<'a, 'b> {
+    // These methods were not being inlined and we need them to be so that the memcpy
+    // is for a constant size
+    #[inline(always)]
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.read_internal(buf);
+        Ok(buf.len())
+    }
+    #[inline(always)]
+    fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
+        self.read_internal(buf);
+        Ok(())
+    }
+}
+
+
+// This uses a (start, end) representation instead of (start, len) so that
+// only need to update a single field as we read through it. This
+// makes it easier for llvm to understand what's going on. (https://github.com/rust-lang/rust/issues/45068)
+// We update the slice only once we're done reading
+struct UncheckedReader<'a: 'b, 'b> {
+    start: *const u8,
+    end: *const u8,
+    slice: &'b mut &'a [u8],
+}
+
+impl<'a, 'b> UncheckedReader<'a, 'b> {
+    #[inline(always)]
+    fn new(buf: &'b mut &'a [u8]) -> UncheckedReader<'a, 'b> {
+        unsafe {
+            let end = buf.as_ptr().add(buf.len());
+            let start = buf.as_ptr();
+            UncheckedReader { start, end, slice: buf }
+        }
+    }
+
+    // This read implementation is significantly faster than the standard &[u8] one.
+    //
+    // First, it only supports reading exactly buf.len() bytes. This ensures that
+    // the argument to memcpy is always buf.len() and will allow a constant buf.len()
+    // to be propagated through to memcpy which LLVM will turn into explicit loads and
+    // stores. The standard implementation does a len = min(slice.len(), buf.len())
+    //
+    // Second, we only need to adjust 'start' after reading and it's only adjusted by a
+    // constant. This allows LLVM to avoid adjusting the length field after ever read
+    // and lets it be aggregated into a single adjustment.
+    #[inline(always)]
+    fn read_internal(&mut self, buf: &mut [u8]) {
+        // this is safe because we panic if start + buf.len() > end
+        unsafe {
+            debug_assert!(self.start.add(buf.len()) <= self.end, "UnsafeReader: read past end of target");
+            ptr::copy_nonoverlapping(self.start, buf.as_mut_ptr(), buf.len());
+            self.start = self.start.add(buf.len());
+        }
+    }
+}
+
+impl<'a, 'b> Drop for UncheckedReader<'a, 'b> {
+    // this adjusts input slice so that it properly represents the amount that's left.
+    #[inline(always)]
+    fn drop(&mut self) {
+        // this is safe because we know that start and end are contained inside the original slice
+        unsafe {
+            *self.slice = slice::from_raw_parts(self.start, (self.end as usize) - (self.start as usize));
+        }
+    }
+}
+
+impl<'a, 'b> Read for UncheckedReader<'a, 'b> {
     // These methods were not being inlined and we need them to be so that the memcpy
     // is for a constant size
     #[inline(always)]
@@ -964,7 +1055,7 @@ impl DisplayListBuilder {
         layout: &di::LayoutPrimitiveInfo,
         space_and_clip: &di::SpaceAndClipInfo,
     ) {
-        serialize_fast(
+        serialize_max_fast(
             &mut self.data,
             di::SerializedDisplayItem {
                 item,

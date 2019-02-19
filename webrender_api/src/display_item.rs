@@ -31,7 +31,7 @@ pub type ItemTag = (u64, u16);
 
 /// The DI is generic over the specifics, while allows to use
 /// the "complete" version of it for convenient serialization.
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct GenericDisplayItem<T> {
     pub item: T,
     pub layout: LayoutPrimitiveInfo,
@@ -42,14 +42,14 @@ pub type DisplayItem = GenericDisplayItem<SpecificDisplayItem>;
 
 /// A modified version of DI where every field is borrowed instead of owned.
 /// It allows us to reduce copies during serialization.
-#[derive(Serialize)]
+#[derive(Serialize, BincodeMaxSize)]
 pub struct SerializedDisplayItem<'a> {
     pub item: &'a SpecificDisplayItem,
     pub layout: &'a LayoutPrimitiveInfo,
     pub space_and_clip: &'a SpaceAndClipInfo,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct PrimitiveInfo<T> {
     pub rect: TypedRect<f32, T>,
     pub clip_rect: TypedRect<f32, T>,
@@ -83,7 +83,7 @@ pub type LayoutPrimitiveInfo = PrimitiveInfo<LayoutPixel>;
 /// Note: this is a separate struct from `PrimitiveInfo` because
 /// it needs indirectional mapping during the DL flattening phase,
 /// turning into `ScrollNodeAndClipChain`.
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct SpaceAndClipInfo {
     pub spatial_id: SpatialId,
     pub clip_id: ClipId,
@@ -101,7 +101,7 @@ impl SpaceAndClipInfo {
 }
 
 #[repr(u64)]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub enum SpecificDisplayItem {
     Clip(ClipDisplayItem),
     ScrollFrame(ScrollFrameDisplayItem),
@@ -162,7 +162,7 @@ pub enum CompletelySpecificDisplayItem {
     PopCacheMarker,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct ClipDisplayItem {
     pub id: ClipId,
     pub image_mask: Option<ImageMask>,
@@ -170,7 +170,7 @@ pub struct ClipDisplayItem {
 
 /// The minimum and maximum allowable offset for a sticky frame in a single dimension.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct StickyOffsetBounds {
     /// The minimum offset for this frame, typically a negative value, which specifies how
     /// far in the negative direction the sticky frame can offset its contents in this
@@ -189,7 +189,7 @@ impl StickyOffsetBounds {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct StickyFrameDisplayItem {
     pub id: SpatialId,
 
@@ -218,13 +218,13 @@ pub struct StickyFrameDisplayItem {
     pub previously_applied_offset: LayoutVector2D,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub enum ScrollSensitivity {
     ScriptAndInputEvents,
     Script,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct ScrollFrameDisplayItem {
     pub clip_id: ClipId,
     pub scroll_frame_id: SpatialId,
@@ -233,12 +233,12 @@ pub struct ScrollFrameDisplayItem {
     pub scroll_sensitivity: ScrollSensitivity,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct RectangleDisplayItem {
     pub color: ColorF,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct LineDisplayItem {
     pub orientation: LineOrientation, // toggles whether above values are interpreted as x/y values
     pub wavy_line_thickness: f32,
@@ -247,14 +247,14 @@ pub struct LineDisplayItem {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize, Eq, Hash, BincodeMaxSize)]
 pub enum LineOrientation {
     Vertical,
     Horizontal,
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize, Eq, Hash, BincodeMaxSize)]
 pub enum LineStyle {
     Solid,
     Dotted,
@@ -262,14 +262,14 @@ pub enum LineStyle {
     Wavy,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct TextDisplayItem {
     pub font_key: font::FontInstanceKey,
     pub color: ColorF,
     pub glyph_options: Option<font::GlyphOptions>,
 } // IMPLICIT: glyphs: Vec<font::GlyphInstance>
 
-#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize, BincodeMaxSize)]
 pub struct NormalBorder {
     pub left: BorderSide,
     pub right: BorderSide,
@@ -328,7 +328,7 @@ impl NormalBorder {
 }
 
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, MallocSizeOf, PartialEq, Serialize, Deserialize, Eq, Hash)]
+#[derive(Debug, Copy, Clone, MallocSizeOf, PartialEq, Serialize, Deserialize, Eq, Hash, BincodeMaxSize)]
 pub enum RepeatMode {
     Stretch,
     Repeat,
@@ -336,14 +336,14 @@ pub enum RepeatMode {
     Space,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub enum NinePatchBorderSource {
     Image(ImageKey),
     Gradient(Gradient),
     RadialGradient(RadialGradient),
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct NinePatchBorder {
     /// Describes what to use as the 9-patch source image. If this is an image,
     /// it will be stretched to fill the size given by width x height.
@@ -381,27 +381,27 @@ pub struct NinePatchBorder {
     pub outset: SideOffsets2D<f32>,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub enum BorderDetails {
     Normal(NormalBorder),
     NinePatch(NinePatchBorder),
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct BorderDisplayItem {
     pub widths: LayoutSideOffsets,
     pub details: BorderDetails,
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub enum BorderRadiusKind {
     Uniform,
     NonUniform,
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize, BincodeMaxSize)]
 pub struct BorderRadius {
     pub top_left: LayoutSize,
     pub top_right: LayoutSize,
@@ -410,14 +410,14 @@ pub struct BorderRadius {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize, BincodeMaxSize)]
 pub struct BorderSide {
     pub color: ColorF,
     pub style: BorderStyle,
 }
 
 #[repr(u32)]
-#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize, Hash, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize, Hash, Eq, BincodeMaxSize)]
 pub enum BorderStyle {
     None = 0,
     Solid = 1,
@@ -438,13 +438,13 @@ impl BorderStyle {
 }
 
 #[repr(u32)]
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, MallocSizeOf, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, MallocSizeOf, PartialEq, Serialize, BincodeMaxSize)]
 pub enum BoxShadowClipMode {
     Outset = 0,
     Inset = 1,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct BoxShadowDisplayItem {
     pub box_bounds: LayoutRect,
     pub offset: LayoutVector2D,
@@ -456,7 +456,7 @@ pub struct BoxShadowDisplayItem {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct Shadow {
     pub offset: LayoutVector2D,
     pub color: ColorF,
@@ -465,20 +465,20 @@ pub struct Shadow {
 }
 
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, Hash, Eq, MallocSizeOf, PartialEq, Serialize, Deserialize, Ord, PartialOrd)]
+#[derive(Debug, Copy, Clone, Hash, Eq, MallocSizeOf, PartialEq, Serialize, Deserialize, Ord, PartialOrd, BincodeMaxSize)]
 pub enum ExtendMode {
     Clamp,
     Repeat,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct Gradient {
     pub start_point: LayoutPoint,
     pub end_point: LayoutPoint,
     pub extend_mode: ExtendMode,
 } // IMPLICIT: stops: Vec<GradientStop>
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct GradientDisplayItem {
     pub gradient: Gradient,
     pub tile_size: LayoutSize,
@@ -486,13 +486,13 @@ pub struct GradientDisplayItem {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, MallocSizeOf, PartialEq, Serialize, BincodeMaxSize)]
 pub struct GradientStop {
     pub offset: f32,
     pub color: ColorF,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct RadialGradient {
     pub center: LayoutPoint,
     pub radius: LayoutSize,
@@ -501,31 +501,31 @@ pub struct RadialGradient {
     pub extend_mode: ExtendMode,
 } // IMPLICIT stops: Vec<GradientStop>
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct ClipChainItem {
     pub id: ClipChainId,
     pub parent: Option<ClipChainId>,
 } // IMPLICIT stops: Vec<ClipId>
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct RadialGradientDisplayItem {
     pub gradient: RadialGradient,
     pub tile_size: LayoutSize,
     pub tile_spacing: LayoutSize,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct ReferenceFrameDisplayListItem {
     pub reference_frame: ReferenceFrame,
 }
 
 /// Provides a hint to WR that it should try to cache the items
 /// within a cache marker context in an off-screen surface.
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct CacheMarkerDisplayItem {
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub enum ReferenceFrameKind {
     Transform,
     Perspective {
@@ -533,7 +533,7 @@ pub enum ReferenceFrameKind {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct ReferenceFrame {
     pub kind: ReferenceFrameKind,
     pub transform_style: TransformStyle,
@@ -543,12 +543,12 @@ pub struct ReferenceFrame {
     pub id: SpatialId,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct PushStackingContextDisplayItem {
     pub stacking_context: StackingContext,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct StackingContext {
     pub transform_style: TransformStyle,
     pub mix_blend_mode: MixBlendMode,
@@ -560,7 +560,7 @@ pub struct StackingContext {
 
 
 #[repr(u32)]
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, BincodeMaxSize)]
 pub enum TransformStyle {
     Flat = 0,
     Preserve3D = 1,
@@ -572,7 +572,7 @@ pub enum TransformStyle {
 /// when we want to cache the output, and performance is
 /// important. Note that this is a performance hint only,
 /// which WR may choose to ignore.
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 #[repr(u32)]
 pub enum RasterSpace {
     // Rasterize in local-space, applying supplied scale to primitives.
@@ -596,7 +596,7 @@ impl RasterSpace {
 }
 
 #[repr(u32)]
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, BincodeMaxSize)]
 pub enum MixBlendMode {
     Normal = 0,
     Multiply = 1,
@@ -617,7 +617,7 @@ pub enum MixBlendMode {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize, BincodeMaxSize)]
 pub enum FilterOp {
     /// Filter that does no transformation of the colors, needed for
     /// debug purposes only.
@@ -655,13 +655,13 @@ impl FilterOp {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct IframeDisplayItem {
     pub pipeline_id: PipelineId,
     pub ignore_missing_pipeline: bool,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct ImageDisplayItem {
     pub image_key: ImageKey,
     pub stretch_size: LayoutSize,
@@ -672,20 +672,20 @@ pub struct ImageDisplayItem {
 }
 
 #[repr(u32)]
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, MallocSizeOf, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, MallocSizeOf, PartialEq, Serialize, BincodeMaxSize)]
 pub enum ImageRendering {
     Auto = 0,
     CrispEdges = 1,
     Pixelated = 2,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, MallocSizeOf, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, MallocSizeOf, PartialEq, Serialize, BincodeMaxSize)]
 pub enum AlphaType {
     Alpha = 0,
     PremultipliedAlpha = 1,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct YuvImageDisplayItem {
     pub yuv_data: YuvData,
     pub color_depth: ColorDepth,
@@ -694,13 +694,13 @@ pub struct YuvImageDisplayItem {
 }
 
 #[repr(u32)]
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, MallocSizeOf, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, MallocSizeOf, PartialEq, Serialize, BincodeMaxSize)]
 pub enum YuvColorSpace {
     Rec601 = 0,
     Rec709 = 1,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, BincodeMaxSize)]
 pub enum YuvData {
     NV12(ImageKey, ImageKey), // (Y channel, CbCr interleaved channel)
     PlanarYCbCr(ImageKey, ImageKey, ImageKey), // (Y channel, Cb channel, Cr Channel)
@@ -717,7 +717,7 @@ impl YuvData {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, MallocSizeOf, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, MallocSizeOf, PartialEq, Serialize, BincodeMaxSize)]
 pub enum YuvFormat {
     NV12 = 0,
     PlanarYCbCr = 1,
@@ -735,7 +735,7 @@ impl YuvFormat {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct ImageMask {
     pub image: ImageKey,
     pub rect: LayoutRect,
@@ -754,7 +754,7 @@ impl ImageMask {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, MallocSizeOf, PartialEq, Serialize, Deserialize, Eq, Hash)]
+#[derive(Copy, Clone, Debug, MallocSizeOf, PartialEq, Serialize, Deserialize, Eq, Hash, BincodeMaxSize)]
 pub enum ClipMode {
     Clip,    // Pixels inside the region are visible.
     ClipOut, // Pixels outside the region are visible.
@@ -772,7 +772,7 @@ impl Not for ClipMode {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, BincodeMaxSize)]
 pub struct ComplexClipRegion {
     /// The boundaries of the rectangle.
     pub rect: LayoutRect,
@@ -863,11 +863,11 @@ impl ComplexClipRegion {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, BincodeMaxSize)]
 pub struct ClipChainId(pub u64, pub PipelineId);
 
 /// A reference to a clipping node defining how an item is clipped.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, BincodeMaxSize)]
 pub enum ClipId {
     Clip(usize, PipelineId),
     ClipChain(ClipChainId),
@@ -910,7 +910,7 @@ impl ClipId {
 }
 
 /// A reference to a spatial node defining item positioning.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, BincodeMaxSize)]
 pub struct SpatialId(pub usize, PipelineId);
 
 const ROOT_REFERENCE_FRAME_SPATIAL_ID: usize = 0;
@@ -949,7 +949,7 @@ impl SpatialId {
 ///
 /// When setting display lists with the `preserve_frame_state` this id is used to preserve scroll
 /// offsets between different sets of ClipScrollNodes which are ScrollFrames.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, BincodeMaxSize)]
 #[repr(C)]
 pub struct ExternalScrollId(pub u64, pub PipelineId);
 

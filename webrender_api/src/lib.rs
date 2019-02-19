@@ -37,6 +37,10 @@ extern crate serde;
 extern crate serde_derive;
 extern crate time;
 
+#[macro_use]
+extern crate bincode_maxsize_derive;
+extern crate bincode_maxsize;
+
 extern crate wr_malloc_size_of;
 use wr_malloc_size_of as malloc_size_of;
 
